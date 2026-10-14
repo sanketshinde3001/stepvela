@@ -77,8 +77,25 @@ namespace StepVela
                     Assert(zip.GetEntry("README.txt") != null, "offline instructions included");
                 }
                 Exporter.Save(Path.Combine(folder, "self-test-no-screenshots.zip"), new List<Step> { new Step { Number = 1, Action = "Comment", Description = "Metadata-only comment", Comment = "No screen capture", Timestamp = DateTimeOffset.Now.ToString("o") } }, false, 25);
-                using (ZipArchive zip = ZipFile.OpenRead(Path.Combine(folder, "self-test-no-screenshots.zip"))) Assert(zip.Entries.Count == 3, "metadata-only export has no images");
-                File.WriteAllText(Path.Combine(folder, "self-test-results.txt"), "PASS\r\nState transitions and invalid transitions; pause-stop; printable/AltGr key privacy; safe shortcut naming; generated screenshot marker; retention; PNG ZIP entries; atomic overwrite; HTML escaping; Unicode; JSON round trip; negative monitor coordinates; relative paths; session start/stop; dropped-event report warnings; metadata-only export.\r\nSynthetic images only: no desktop capture, hook, or UI Automation calls were used.\r\n", Encoding.UTF8);
+                using (ZipArchive zip = ZipFile.OpenRead(Path.Combine(folder, "self-test-no-screenshots.zip"))) Assert(!zip.Entries.Any(e=>e.FullName.StartsWith("screenshots/"))&&zip.GetEntry("guide.md")!=null, "metadata-only export has no images and includes Markdown");
+                GuideTools.Move(steps,2,-1); Assert(steps[1].Action=="Comment"&&steps.Select(s=>s.Number).SequenceEqual(new int[]{1,2,3}),"reorder keeps content and normalizes numbering");
+                steps[1].Description="Updated title <unsafe>"; steps[1].Comment="Updated description";
+                using(Bitmap image=Images.Load(steps[1].LocalScreenshot)) {
+                    Images.Redact(image,new Rectangle(20,20,200,100)); Assert(image.GetPixel(50,50).R<25,"redaction changes underlying pixels");
+                    string redacted=Path.Combine(sessionFolder,"redacted.jpg"); Images.Replace(image,redacted); steps[1].LocalScreenshot=redacted; steps[1].Redacted=true;
+                }
+                string project=Path.Combine(folder,"roundtrip.stepvela"); Exporter.Save(project,steps,true,25,start,stop,0,"Guide title <escaped>");
+                string importFolder=Path.Combine(sessionFolder,"import"); Directory.CreateDirectory(importFolder); Report loaded=ProjectStore.Load(project,importFolder);
+                Assert(loaded.Title=="Guide title <escaped>"&&loaded.Steps[1].Description=="Updated title <unsafe>"&&loaded.Steps[1].Comment=="Updated description"&&loaded.Steps[1].Redacted,"edited guide/project round trip");
+                using(Bitmap image=Images.Load(loaded.Steps[1].LocalScreenshot)) Assert(image.GetPixel(50,50).R<30,"redaction survives JPEG and project reopening");
+                using(ZipArchive zip=ZipFile.OpenRead(project)) {
+                    string markdown;using(StreamReader reader=new StreamReader(zip.GetEntry("guide.md").Open()))markdown=reader.ReadToEnd(); Assert(markdown.Contains("Updated title &lt;unsafe&gt;")&&markdown.Contains("Updated description"),"Markdown contains edited guide without raw HTML");
+                }
+                string hostile=Path.Combine(folder,"invalid-path.stepvela");
+                Report invalid=new Report{Steps=new List<Step>{new Step{Screenshot="../outside.jpg"}},ScreenshotLimit=25};
+                using(FileStream file=File.Create(hostile))using(ZipArchive zip=new ZipArchive(file,ZipArchiveMode.Create))using(Stream entry=zip.CreateEntry("data.json").Open())new DataContractJsonSerializer(typeof(Report)).WriteObject(entry,invalid);
+                bool refused=false;try{ProjectStore.Load(hostile,importFolder);}catch(InvalidDataException){refused=true;}Assert(refused&&!File.Exists(Path.Combine(folder,"outside.jpg")),"archive traversal refused");
+                File.WriteAllText(Path.Combine(folder, "self-test-results.txt"), "PASS\r\nState transitions; keyboard-content privacy; marker and retention; atomic overwrite; HTML/Markdown escaping; Unicode; JSON; coordinates; portable paths; session times; skipped-event warning; metadata-only export; step reordering; title/description edits; permanent pixel redaction; saved-project round trip; malicious archive path rejection.\r\nSynthetic images only: no desktop capture, hook, or UI Automation calls were used.\r\n", Encoding.UTF8);
             }
             finally { Directory.Delete(sessionFolder, true); }
         }

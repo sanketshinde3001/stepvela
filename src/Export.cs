@@ -36,11 +36,11 @@ namespace StepVela
                 step.ScreenshotOmitted = true;
             }
         }
-        public static void Save(string destination, List<Step> steps, bool enabled, int limit, DateTimeOffset? started = null, DateTimeOffset? stopped = null, int skipped = 0)
+        public static void Save(string destination, List<Step> steps, bool enabled, int limit, DateTimeOffset? started = null, DateTimeOffset? stopped = null, int skipped = 0, string title = "Untitled guide")
         {
             destination = Path.GetFullPath(destination);
             string temp = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            Report report = new Report { GeneratedAt = DateTimeOffset.Now.ToString("o"), ScreenshotLimit = limit, ScreenshotsEnabled = enabled, Steps = steps,
+            Report report = new Report { Title=String.IsNullOrWhiteSpace(title)?"Untitled guide":title, GeneratedAt = DateTimeOffset.Now.ToString("o"), ScreenshotLimit = limit, ScreenshotsEnabled = enabled, Steps = steps,
                 SessionStartedAt = started.HasValue ? started.Value.ToString("o") : null, SessionStoppedAt = stopped.HasValue ? stopped.Value.ToString("o") : null, SkippedEventCount = skipped };
             try
             {
@@ -60,6 +60,8 @@ namespace StepVela
                     using (Stream json = data.Open()) new DataContractJsonSerializer(typeof(Report)).WriteObject(json, report);
                     ZipArchiveEntry html = zip.CreateEntry("report.html", CompressionLevel.Optimal);
                     using (StreamWriter writer = new StreamWriter(html.Open(), new UTF8Encoding(false))) writer.Write(Html(report));
+                    ZipArchiveEntry markdown=zip.CreateEntry("guide.md",CompressionLevel.Optimal);
+                    using(StreamWriter writer=new StreamWriter(markdown.Open(),new UTF8Encoding(false))) writer.Write(Markdown(report));
                     ZipArchiveEntry help = zip.CreateEntry("README.txt", CompressionLevel.Optimal);
                     using (StreamWriter writer = new StreamWriter(help.Open(), new UTF8Encoding(false)))
                         writer.Write("Extract this ZIP, then open report.html in a browser. data.json contains structured step metadata. All assets are local; no internet connection is needed.  Screenshots and accessibility labels may contain private information; review before sharing.\r\n");
@@ -69,12 +71,27 @@ namespace StepVela
             }
             finally { if (File.Exists(temp)) File.Delete(temp); }
         }
+        static string Md(string text) {
+            string value=Escape(text).Replace("\\","\\\\");
+            foreach(char c in new char[]{'[',']','*','_','#','`'}) value=value.Replace(c.ToString(),"\\"+c);
+            return value;
+        }
+        public static string Markdown(Report report) {
+            StringBuilder text=new StringBuilder("# "+Md(report.Title)+"\n\n");
+            if(report.SkippedEventCount>0) text.Append("> ").Append(report.SkippedEventCount).Append(" input events were skipped during capture.\n\n");
+            foreach(Step step in report.Steps) {
+                text.Append("## ").Append(step.Number).Append(". ").Append(Md(step.Description)).Append("\n\n");
+                if(!String.IsNullOrEmpty(step.Comment)) text.Append(Md(step.Comment)).Append("\n\n");
+                if(!String.IsNullOrEmpty(step.Screenshot)) text.Append("![Step ").Append(step.Number).Append("](").Append(step.Screenshot).Append(")\n\n");
+            }
+            return text.Append("---\nCreated with StepVela.\n").ToString();
+        }
         public static string Html(Report report)
         {
             StringBuilder html = new StringBuilder();
             html.Append("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Steps recording</title><style>");
             html.Append("*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#1b293d;font:16px/1.6 system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:1100px;margin:auto;padding:40px 24px}header{padding:32px;background:#142840;color:white;border-radius:16px;margin-bottom:24px}.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#aac5e7}h1{margin:8px 0;font-size:34px}h2{margin:0;font-size:20px}header p{color:#d8e3f1;margin:6px 0}.step{background:white;border:1px solid #dbe2ec;border-radius:12px;margin:18px 0;overflow:hidden}.body{padding:24px}.number{display:inline-block;background:#e8f0ff;color:#265eba;padding:3px 10px;border-radius:6px;margin-right:10px;font-size:14px}.meta{font-size:13px;color:#58677b;margin-top:12px;overflow-wrap:anywhere}.shot{display:block;width:100%;height:auto;border-top:1px solid #dbe2ec}.comment{white-space:pre-wrap;overflow-wrap:anywhere;background:#fff4d4;border-left:4px solid #d49d22;padding:12px 16px;margin-top:18px}.note{color:#68778b;font-size:13px}.warning{color:#8b5300}footer{padding:22px 0;color:#68778b;font-size:13px}@media print{body{background:white}main{padding:0}.step{break-inside:avoid}header{color:#142840;background:white;border:1px solid #ccd5e0}header p,.eyebrow{color:#52637a}}");
-            html.Append("</style></head><body><main><header><div class=\"eyebrow\">StepVela · Offline report</div><h1>Steps recording</h1><p>");
+            html.Append("</style></head><body><main><header><div class=\"eyebrow\">StepVela</div><h1>").Append(Escape(report.Title)).Append("</h1><p>");
             html.Append(report.Steps.Count).Append(" steps · Generated ").Append(Escape(report.GeneratedAt));
             html.Append("</p><p>Mouse actions, keyboard events, window details, screenshots, and comments.</p>");
             if (report.SessionStartedAt != null) html.Append("<p>Recording: ").Append(Escape(report.SessionStartedAt)).Append(" → ").Append(Escape(report.SessionStoppedAt)).Append("</p>");

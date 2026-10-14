@@ -20,7 +20,7 @@ using System.Windows.Forms;
 
 namespace StepVela
 {
-    sealed class RecorderForm : Form
+    sealed partial class RecorderForm : Form
     {
         readonly RecordingSession session = new RecordingSession();
         readonly List<Step> steps = new List<Step>();
@@ -29,10 +29,10 @@ namespace StepVela
         readonly Native.HookProc hookProc;
         readonly Native.HookProc keyboardProc;
         readonly int ownProcess = Process.GetCurrentProcess().Id;
-        readonly Button start, pause, stop, comment, save, settings;
-        readonly Label stateLabel, countLabel, privacy, detail;
-        readonly ListView list;
-        readonly PictureBox preview;
+        Button start, pause, stop, comment, save, settings;
+        Label stateLabel, countLabel, detail;
+        ListView list;
+        PictureBox preview;
         readonly System.Windows.Forms.Timer timer;
         IntPtr hook;
         IntPtr keyboardHook;
@@ -59,64 +59,24 @@ namespace StepVela
 
         public RecorderForm()
         {
-            Text = "StepVela"; ClientSize = new Size(1080, 735); MinimumSize = new Size(880, 600);
-            StartPosition = FormStartPosition.CenterScreen; Font = new Font("Segoe UI", 10); BackColor = Color.FromArgb(241, 244, 249);
-            AutoScaleMode = AutoScaleMode.Dpi;
-            sessionsRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "StepVela", "Sessions");
-            Directory.CreateDirectory(sessionsRoot);
-            LoadSettings();
-            TableLayoutPanel shell = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 5, ColumnCount = 1, Padding = new Padding(22) };
-            shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 94)); shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
-            shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 48)); shell.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); shell.RowStyles.Add(new RowStyle(SizeType.Absolute, 47));
-            Panel heading = new Panel { Dock = DockStyle.Fill };
-            Label title = new Label { Text = "StepVela", Font = new Font("Segoe UI", 25, FontStyle.Bold), AutoSize = true, Location = new Point(0, 0), ForeColor = Color.FromArgb(25, 43, 67) };
-            Label subtitle = new Label { Text = "Turn desktop actions into a clear, shareable walkthrough.", AutoSize = true, Location = new Point(2, 53), ForeColor = Color.FromArgb(81, 101, 125) };
-            Label badge = new Label { Text = "DYNAMIC STEP RECORDER", AutoSize = true, Font = new Font("Segoe UI", 8, FontStyle.Bold), ForeColor = Color.FromArgb(75, 100, 131), Anchor = AnchorStyles.Top | AnchorStyles.Right };
-            heading.Controls.AddRange(new Control[] { title, subtitle, badge });
-            heading.Resize += delegate { badge.Location = new Point(Math.Max(0, heading.Width - badge.Width), 17); };
-            FlowLayoutPanel toolbar = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false };
-            start = Button("Start recording", 158, true); pause = Button("Pause", 105, false); stop = Button("Stop", 86, false);
-            comment = Button("Add comment", 137, false); save = Button("Save ZIP", 112, false); settings = Button("Settings", 99, false);
-            toolbar.Controls.AddRange(new Control[] { start, pause, stop, comment, save, settings });
-            Panel status = new Panel { Dock = DockStyle.Fill };
-            stateLabel = new Label { AutoSize = true, Location = new Point(2, 8), Font = new Font("Segoe UI", 10, FontStyle.Bold) };
-            countLabel = new Label { AutoSize = true, Location = new Point(252, 8), ForeColor = Color.FromArgb(84, 102, 124) };
-            status.Controls.AddRange(new Control[] { stateLabel, countLabel });
-            SplitContainer body = new SplitContainer { Size = new Size(1036, 430), SplitterDistance = 430, Dock = DockStyle.Fill, Orientation = Orientation.Vertical, SplitterWidth = 10, BackColor = BackColor, Panel1MinSize = 280, Panel2MinSize = 340 };
-            list = new ListView { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true, HideSelection = false, MultiSelect = false, BorderStyle = BorderStyle.None, BackColor = Color.White };
-            list.Columns.Add("Step", 48); list.Columns.Add("Action / application", 286); list.Columns.Add("Time", 92);
-            Panel previewPanel = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(14) };
-            TableLayoutPanel previewLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1 };
-            previewLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); previewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 110));
-            preview = new PictureBox { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.FromArgb(231, 237, 245) };
-            detail = new Label { Dock = DockStyle.Fill, Padding = new Padding(2, 14, 0, 0), Text = "Start recording, then click in another app.\r\nSelect a step here to inspect its screenshot and details.", ForeColor = Color.FromArgb(79, 99, 124), AutoEllipsis = true };
-            previewLayout.Controls.Add(preview, 0, 0); previewLayout.Controls.Add(detail, 0, 1); previewPanel.Controls.Add(previewLayout);
-            body.Panel1.Controls.Add(list); body.Panel2.Controls.Add(previewPanel);
-            privacy = new Label { Dock = DockStyle.Fill, Text = "Local only. Typed characters are never stored. Screenshots and app labels can include private information.", ForeColor = Color.FromArgb(91, 109, 130), Font = new Font("Segoe UI", 9), Padding = new Padding(2, 16, 0, 0) };
-            shell.Controls.Add(heading, 0, 0); shell.Controls.Add(toolbar, 0, 1); shell.Controls.Add(status, 0, 2); shell.Controls.Add(body, 0, 3); shell.Controls.Add(privacy, 0, 4);
-            Controls.Add(shell);
-            Shown += delegate { body.SplitterDistance = Math.Min(430, body.Width - 340); };
-            start.Click += delegate { StartRecording(); }; pause.Click += delegate { TogglePause(); }; stop.Click += delegate { StopRecording(); };
-            comment.Click += delegate { AddComment(); }; save.Click += delegate { SaveRecording(); }; settings.Click += delegate { EditSettings(); };
-            list.SelectedIndexChanged += delegate { ShowSelection(); };
-            FormClosing += OnClosing; hookProc = MouseHook; keyboardProc = KeyboardHook;
-            worker = new Thread(Work) { IsBackground = true, Name = "Steps screenshot worker" }; worker.Start();
-            timer = new System.Windows.Forms.Timer { Interval = 500 }; timer.Tick += delegate
-            {
-                if (typingRequest != null && DateTimeOffset.Now - lastTyping > TimeSpan.FromMilliseconds(600)) FlushTyping();
-                if (wheelRequest != null && DateTimeOffset.Now - lastWheel > TimeSpan.FromMilliseconds(400)) FlushWheel();
+            Theme.Form(this); Text="StepVela"; ClientSize=new Size(1180,790); MinimumSize=new Size(960,680); StartPosition=FormStartPosition.CenterScreen;
+            AutoScaleMode=AutoScaleMode.Dpi;
+            try { Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
+            sessionsRoot=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"StepVela","Sessions");
+            Directory.CreateDirectory(sessionsRoot); LoadSettings(); BuildWorkspace();
+            start.Click+=delegate { StartRecording(); }; pause.Click+=delegate { TogglePause(); }; stop.Click+=delegate { StopRecording(); };
+            comment.Click+=delegate { AddComment(); }; save.Click+=delegate { SaveRecording(); }; settings.Click+=delegate { EditSettings(); };
+            list.SelectedIndexChanged+=delegate { ShowSelection(); };
+            FormClosing+=OnClosing; hookProc=MouseHook; keyboardProc=KeyboardHook;
+            worker=new Thread(Work) {IsBackground=true,Name="StepVela capture"}; worker.Start();
+            timer=new System.Windows.Forms.Timer {Interval=500}; timer.Tick+=delegate {
+                if(typingRequest!=null && DateTimeOffset.Now-lastTyping>TimeSpan.FromMilliseconds(600)) FlushTyping();
+                if(wheelRequest!=null && DateTimeOffset.Now-lastWheel>TimeSpan.FromMilliseconds(400)) FlushWheel();
                 UpdateControls();
-            }; timer.Start();
+            };
             UpdateControls();
         }
 
-        Button Button(string title, int width, bool primary)
-        {
-            Button button = new Button { Text = title, Width = width, Height = 40, FlatStyle = FlatStyle.Flat, Margin = new Padding(0, 2, 10, 0), Cursor = Cursors.Hand };
-            button.FlatAppearance.BorderColor = Color.FromArgb(198, 209, 224); button.FlatAppearance.BorderSize = primary ? 0 : 1;
-            button.BackColor = primary ? Color.FromArgb(37, 91, 177) : Color.White; button.ForeColor = primary ? Color.White : Color.FromArgb(36, 57, 84);
-            return button;
-        }
         void UpdateControls()
         {
             bool active = session.State == RecordingState.Recording, paused = session.State == RecordingState.Paused;
@@ -125,11 +85,11 @@ namespace StepVela
             comment.Enabled = (active || paused) && remaining == 0; save.Enabled = session.State == RecordingState.Stopped && remaining == 0 && steps.Count > 0;
             settings.Enabled = !active && !paused && remaining == 0; pause.Text = paused ? "Resume" : "Pause";
             if (commentBusy) { start.Enabled = pause.Enabled = stop.Enabled = comment.Enabled = save.Enabled = settings.Enabled = false; }
-            stateLabel.Text = active ? "●  Recording" : paused ? "●  Paused" : session.State == RecordingState.Stopped ? (remaining > 0 ? "●  Finishing captures…" : "●  Recording stopped") : "●  Ready to record";
-            stateLabel.ForeColor = active ? Color.FromArgb(197, 40, 54) : paused ? Color.FromArgb(153, 106, 15) : Color.FromArgb(61, 98, 135);
+            stateLabel.Text = active ? "● Recording" : paused ? "● Paused" : remaining>0 ? "Finishing…" : "● Ready";
+            stateLabel.ForeColor = active ? Color.FromArgb(197, 40, 54) : paused ? Color.FromArgb(153, 106, 15) : Theme.Muted;
             TimeSpan elapsed = startedAt == default(DateTimeOffset) ? TimeSpan.Zero : (stoppedAt ?? DateTimeOffset.Now) - startedAt;
             countLabel.Text = steps.Count + " steps" + (remaining > 0 ? " · " + remaining + " pending" : "") + " · " + elapsed.ToString(@"hh\:mm\:ss") + (dropped > 0 ? " · " + dropped + " events skipped (busy)" : "");
-            Text = (active ? "[Recording] " : paused ? "[Paused] " : "") + "StepVela";
+            Text = (active ? "● " : "") + "StepVela"; UpdateEditorControls(!active && remaining==0 && !commentBusy);
             if(active || paused || remaining>0) timer.Start(); else timer.Stop();
         }
         void InstallHook()
@@ -154,11 +114,11 @@ namespace StepVela
             {
                 ClearPreview(); CleanupSession();
                 sessionFolder = Path.Combine(sessionsRoot, Guid.NewGuid().ToString("N")); Directory.CreateDirectory(sessionFolder);
-                steps.Clear(); list.Items.Clear(); dirty = false; savedPath = null; dropped = 0;
+                steps.Clear(); list.Items.Clear(); dirty = false; savedPath = null; projectPath=null; dropped = 0; SetGuideTitle("Untitled guide");
                 activeScreenshots = screenshotsEnabled; activeLimit = screenshotLimit;
                 activeWindowCapture = activeWindowOnly;
                 InstallHook(); session.Start(); startedAt = DateTimeOffset.Now; stoppedAt = null;
-                detail.Text = "Recording mouse clicks in other apps. Use Pause to take a break or Stop to prepare the report.";
+                detail.Text = "Capturing your flow";
             }
             catch (Exception error) { RemoveHook(); ShowError("Could not start recording", error); }
             UpdateControls();
@@ -177,7 +137,7 @@ namespace StepVela
         {
             RemoveHook(); session.Stop(); stoppedAt = DateTimeOffset.Now; UpdateControls();
             if (steps.Count == 0 && Volatile.Read(ref pending) == 0) detail.Text = "No actions were recorded. Start again and click in another application.";
-            else detail.Text = "Review your steps, then save the recording as an offline ZIP report.";
+            else detail.Text = "Ready to edit and export";
         }
         IntPtr MouseHook(int code, IntPtr wParam, IntPtr lParam)
         {
@@ -322,15 +282,16 @@ namespace StepVela
         { Image previous = preview.Image; preview.Image = null; if (previous != null) previous.Dispose(); }
         void ShowSelection()
         {
-            ClearPreview(); if (list.SelectedItems.Count == 0) return;
+            ClearPreview(); if (list.SelectedItems.Count == 0) { BindStep(null); if(timer!=null)UpdateControls(); return; }
             Step step = (Step)list.SelectedItems[0].Tag;
             if (!String.IsNullOrEmpty(step.LocalScreenshot) && File.Exists(step.LocalScreenshot))
             {
                 try { using (Image file = Image.FromFile(step.LocalScreenshot)) preview.Image = new Bitmap(file); }
                 catch (Exception error) { step.CaptureWarning = ScreenCapture.JoinWarning(step.CaptureWarning, "Preview failed: " + error.Message); }
             }
-            detail.Text = step.Description + "\r\n" + (String.IsNullOrEmpty(step.WindowTitle) ? step.ProcessName : step.WindowTitle + " · " + step.ProcessName)
-                + "\r\n" + (!String.IsNullOrEmpty(step.Comment) ? step.Comment : step.ScreenshotOmitted ? "Screenshot removed by the recent-screenshot limit." : step.CaptureWarning ?? "");
+            detail.Text=(step.ProcessName??"")+(step.ScreenshotOmitted?" · Screenshot limit reached":"");
+            BindStep(step);
+            UpdateControls();
         }
         async void AddComment()
         {
@@ -389,13 +350,13 @@ namespace StepVela
         }
         void SaveRecording()
         {
-            using (SaveFileDialog dialog = new SaveFileDialog { Title = "Save steps report", Filter = "Steps report ZIP (*.zip)|*.zip", DefaultExt = "zip", AddExtension = true, FileName = "steps-recording-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".zip", OverwritePrompt = true })
+            using (SaveFileDialog dialog = new SaveFileDialog { Title = "Export guide", Filter = "Guide ZIP — HTML + Markdown (*.zip)|*.zip", DefaultExt = "zip", AddExtension = true, FileName = "stepvela-guide.zip", OverwritePrompt = true })
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
                 try
                 {
-                    UseWaitCursor = true; Exporter.Save(dialog.FileName, steps, activeScreenshots, activeLimit, startedAt, stoppedAt, dropped);
-                    dirty = false; savedPath = dialog.FileName; detail.Text = "Saved " + savedPath + "\r\nExtract the ZIP and open report.html. Structured step data is in data.json.";
+                    UseWaitCursor = true; Exporter.Save(dialog.FileName, steps, activeScreenshots, activeLimit, startedAt, stoppedAt, dropped, guideTitle.Text);
+                    savedPath = dialog.FileName; detail.Text = "Exported " + Path.GetFileName(savedPath);
                 }
                 catch (Exception error) { ShowError("Could not save report", error); }
                 finally { UseWaitCursor = false; }
@@ -403,14 +364,14 @@ namespace StepVela
         }
         void EditSettings()
         {
-            using (SettingsForm dialog = new SettingsForm(screenshotsEnabled, screenshotLimit))
+            using (SettingsForm dialog = new SettingsForm(screenshotsEnabled, screenshotLimit, activeWindowOnly))
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
-                screenshotsEnabled = dialog.ScreenshotEnabled; screenshotLimit = dialog.ScreenshotLimit;
+                screenshotsEnabled = dialog.ScreenshotEnabled; screenshotLimit = dialog.ScreenshotLimit; activeWindowOnly=dialog.ActiveWindowOnly;
                 try
                 {
                     string root = Path.GetDirectoryName(sessionsRoot);
-                    File.WriteAllLines(Path.Combine(root, "settings.txt"), new string[] { screenshotsEnabled.ToString(), screenshotLimit.ToString() });
+                    File.WriteAllLines(Path.Combine(root, "settings.txt"), new string[] { screenshotsEnabled.ToString(), screenshotLimit.ToString(), activeWindowOnly.ToString() });
                 }
                 catch (Exception error) { ShowError("Settings apply for this launch but could not be saved", error); }
             }
@@ -421,7 +382,7 @@ namespace StepVela
             {
                 string[] values = File.ReadAllLines(Path.Combine(Path.GetDirectoryName(sessionsRoot), "settings.txt")); bool enabled; int count;
                 if (values.Length >= 2 && Boolean.TryParse(values[0], out enabled) && Int32.TryParse(values[1], out count) && count >= 1 && count <= 999)
-                { screenshotsEnabled = enabled; screenshotLimit = count; }
+                { screenshotsEnabled = enabled; screenshotLimit = count; bool windowOnly; if(values.Length>2 && Boolean.TryParse(values[2],out windowOnly)) activeWindowOnly=windowOnly; }
             }
             catch { }
         }

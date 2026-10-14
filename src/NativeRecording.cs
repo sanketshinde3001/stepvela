@@ -81,6 +81,7 @@ namespace StepVela
         [DataMember(Order = 13)] public string Screenshot;
         [DataMember(Order = 14)] public bool ScreenshotOmitted;
         [DataMember(Order = 15)] public string CaptureWarning;
+        [DataMember(Order = 16)] public bool Redacted;
         [IgnoreDataMember] public string LocalScreenshot;
     }
 
