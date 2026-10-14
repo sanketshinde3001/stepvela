@@ -1,0 +1,28 @@
+StepVela 0.1.0 - Dynamic step recorder
+
+Record a flow, finish recording, then edit its steps and screenshots.
+Save guide keeps an editable .stepvela project. Export creates a ZIP
+with an HTML guide, Markdown, JSON, and the retained images.
+Extract an exported ZIP and open report.html.
+
+Ctrl+Shift+F8: record / pause / resume
+Ctrl+Shift+F9: finish recording
+(Shortcuts may be unavailable if another app already uses them.)
+
+Settings: active-window or whole-desktop capture, screenshots on/off,
+and retention from 1 to 999 images. The default is 25 active-window images.
+Images are limited to a 1600-pixel long edge to control memory and storage.
+
+StepVela operates offline. It does not upload recordings or store printable
+keyboard characters. Screenshots and window labels can contain information
+visible on your screen: review and redact before sharing.
+
+Windows 10/11 with .NET Framework 4.8 or newer is required.
+The current release is unsigned. A Windows download or SmartScreen warning
+may appear. The release provides SHA-256 checksums and full source code;
+do not treat checksums as a code-signing certificate.
+
+Uninstall through Settings > Apps. Your saved guides and exported reports
+are preserved. See the repository for build instructions and known limits.
+
+https://github.com/sanketshinde3001/stepvela

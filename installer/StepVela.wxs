@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="A5D7B08B-52B6-4562-98AD-79D576BE5C01" Name="StepVela" Language="1033" Version="0.1.0" Manufacturer="Sanket Rajendra Shinde" UpgradeCode="6E6FAFB5-609B-4C7E-BE13-6B8DDF726B60">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perUser" InstallPrivileges="limited" Description="StepVela dynamic step recorder"/>
+    <MajorUpgrade DowngradeErrorMessage="A newer version of StepVela is already installed."/>
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high"/>
+    <Property Id="ARPPRODUCTICON" Value="StepVelaIcon"/>
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/sanketshinde3001/stepvela"/>
+    <Property Id="ARPHELPLINK" Value="https://github.com/sanketshinde3001/stepvela/issues"/>
+    <Property Id="NET48"><RegistrySearch Id="Net48Release" Root="HKLM" Key="SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full" Name="Release" Type="raw"/></Property>
+    <Property Id="WINDOWSBUILD"><RegistrySearch Id="WindowsBuild" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion" Name="CurrentBuildNumber" Type="raw"/></Property>
+    <Condition Message="StepVela requires Windows 10 or 11.">Installed OR WINDOWSBUILD &gt;= 10240</Condition>
+    <Condition Message="StepVela requires .NET Framework 4.8 or newer. Install it from https://dotnet.microsoft.com/download/dotnet-framework/net48 and run this installer again.">Installed OR NET48 &gt;= "#528040"</Condition>
+    <Icon Id="StepVelaIcon" SourceFile="$(var.ProjectRoot)\assets\stepvela.ico"/>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder"><Directory Id="UserPrograms" Name="Programs"><Directory Id="INSTALLFOLDER" Name="StepVela">
+        <Component Id="ApplicationFiles" Guid="D6504972-3DD9-4A2A-909D-0CF34877C060">
+          <File Id="StepVelaExe" Source="$(var.ProjectRoot)\build\StepVela.exe"/>
+          <File Id="License" Source="$(var.ProjectRoot)\LICENSE"/>
+          <File Id="Readme" Source="$(var.ProjectRoot)\docs\QUICKSTART.txt"/>
+          <RegistryValue Root="HKCU" Key="Software\StepVela" Name="InstallFolder" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes"/>
+          <RemoveFolder Id="RemoveApplicationFolder" Directory="INSTALLFOLDER" On="uninstall"/>
+          <RemoveFolder Id="RemoveEmptyProgramsFolder" Directory="UserPrograms" On="uninstall"/>
+        </Component>
+      </Directory></Directory></Directory>
+      <Directory Id="ProgramMenuFolder"><Directory Id="ApplicationMenu" Name="StepVela">
+        <Component Id="StartMenuShortcut" Guid="E9E0B553-21B4-41CF-9D72-63378193EB9B">
+          <Shortcut Id="StepVelaStart" Name="StepVela" Description="Dynamic step recorder" Target="[INSTALLFOLDER]StepVela.exe" WorkingDirectory="INSTALLFOLDER" Icon="StepVelaIcon"/>
+          <RemoveFolder Id="RemoveMenu" On="uninstall"/>
+          <RegistryValue Root="HKCU" Key="Software\StepVela" Name="ShortcutInstalled" Type="integer" Value="1" KeyPath="yes"/>
+        </Component>
+      </Directory></Directory>
+    </Directory>
+    <Feature Id="Main" Title="StepVela" Level="1"><ComponentRef Id="ApplicationFiles"/><ComponentRef Id="StartMenuShortcut"/></Feature>
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER"/>
+    <UIRef Id="WixUI_InstallDir"/>
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.ProjectRoot)\installer\license.rtf"/>
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.ProjectRoot)\assets\installer-banner.bmp"/>
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.ProjectRoot)\assets\installer-dialog.bmp"/>
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Open StepVela"/>
+    <CustomAction Id="SetLaunchTarget" Property="WixShellExecTarget" Value="[INSTALLFOLDER]StepVela.exe"/>
+    <CustomAction Id="LaunchStepVela" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes"/>
+    <UI>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="SetLaunchTarget" Order="1">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchStepVela" Order="2">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed</Publish>
+    </UI>
+  </Product>
+</Wix>
