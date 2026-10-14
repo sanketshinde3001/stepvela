@@ -10,3 +10,4 @@
 *.exe
 *.pdb
 /tools/
+!/examples/checklist.stepvela
