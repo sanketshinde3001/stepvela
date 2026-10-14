@@ -36,10 +36,20 @@ namespace StepVela
                 }
             }
             Native.SetProcessDPIAware(); Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
-            Application.ThreadException += delegate(object sender, ThreadExceptionEventArgs eventArgs)
-            { MessageBox.Show(eventArgs.Exception.Message, "Recorder error", MessageBoxButtons.OK, MessageBoxIcon.Error); };
-            try { Application.Run(new RecorderForm()); return 0; }
-            catch (Exception error) { MessageBox.Show(error.Message, "StepVela", MessageBoxButtons.OK, MessageBoxIcon.Error); return 1; }
+            bool created;string identity=System.Security.Principal.WindowsIdentity.GetCurrent().User.Value;
+            using(Mutex instance=new Mutex(true,"Local\\StepVela-"+identity,out created)) {
+                if(!created) {
+                    foreach(Process process in Process.GetProcessesByName("StepVela"))using(process)try{if(process.Id!=Process.GetCurrentProcess().Id&&process.MainWindowHandle!=IntPtr.Zero){Native.ShowWindow(process.MainWindowHandle,9);Native.SetForegroundWindow(process.MainWindowHandle);break;}}catch{}
+                    return 0;
+                }
+                RecorderForm form=null;
+                Application.ThreadException += delegate(object sender, ThreadExceptionEventArgs eventArgs) {
+                    if(form!=null)form.FailSafeStop(); MessageBox.Show(eventArgs.Exception.Message,"StepVela",MessageBoxButtons.OK,MessageBoxIcon.Error);
+                };
+                try { form=new RecorderForm(); Application.Run(form); return 0; }
+                catch (Exception error) { if(form!=null)form.FailSafeStop();MessageBox.Show(error.Message,"StepVela",MessageBoxButtons.OK,MessageBoxIcon.Error); return 1; }
+                finally { instance.ReleaseMutex(); }
+            }
         }
     }
 }

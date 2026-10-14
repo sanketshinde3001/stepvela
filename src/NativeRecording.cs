@@ -143,6 +143,10 @@ namespace StepVela
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr GetModuleHandle(string module);
         [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
         [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int key);
+        [DllImport("user32.dll")] public static extern bool RegisterHotKey(IntPtr window,int id,uint modifiers,uint key);
+        [DllImport("user32.dll")] public static extern bool UnregisterHotKey(IntPtr window,int id);
+        [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr window,int command);
+        [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window);
         [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr window, out RECT rect);
         [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
         [DllImport("user32.dll")] public static extern IntPtr GetDC(IntPtr window);

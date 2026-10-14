@@ -75,7 +75,17 @@ namespace StepVela
                 UpdateControls();
             };
             UpdateControls();
+            Shown+=delegate { Native.RegisterHotKey(Handle,8101,0x4006,0x77); Native.RegisterHotKey(Handle,8102,0x4006,0x78); };
         }
+        protected override void WndProc(ref Message message) {
+            if(message.Msg==0x0312&&Enabled&&!commentBusy) {
+                int id=message.WParam.ToInt32();
+                if(id==8101) { if(session.State==RecordingState.Recording||session.State==RecordingState.Paused)TogglePause();else if(Volatile.Read(ref pending)==0)StartRecording(); }
+                if(id==8102&&(session.State==RecordingState.Recording||session.State==RecordingState.Paused))StopRecording();
+            }
+            base.WndProc(ref message);
+        }
+        internal void FailSafeStop() { try {RemoveHook();if(session.State==RecordingState.Recording||session.State==RecordingState.Paused)session.Stop();UpdateControls();}catch{} }
 
         void UpdateControls()
         {
@@ -219,6 +229,7 @@ namespace StepVela
                 {
                     Native.KeyboardData data = (Native.KeyboardData)Marshal.PtrToStructure(lParam, typeof(Native.KeyboardData));
                     uint key = data.VirtualKey;
+                    if(Down(0x11)&&Down(0x10)&&(key==0x77||key==0x78))return Native.CallNextHookEx(keyboardHook,code,wParam,lParam);
                     if (key == 0x10 || key == 0x11 || key == 0x12 || key == 0x5B || key == 0x5C || (key >= 0xA0 && key <= 0xA5)) return Native.CallNextHookEx(keyboardHook, code, wParam, lParam);
                     IntPtr target = Native.GetForegroundWindow(); uint processId; Native.GetWindowThreadProcessId(target, out processId);
                     if (processId != ownProcess)
@@ -402,6 +413,7 @@ namespace StepVela
             if (dirty && (steps.Count > 0 || Volatile.Read(ref pending) > 0 || typingRequest != null || wheelRequest != null) && MessageBox.Show(this, "Close and discard the current unsaved recording?", "Unsaved recording", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             { e.Cancel = true; return; }
             exiting = true; RemoveHook(); timer.Stop(); ClearPreview(); queue.CompleteAdding();
+            Native.UnregisterHotKey(Handle,8101);Native.UnregisterHotKey(Handle,8102);
             if (worker.Join(1600)) CleanupSession();
         }
         void ShowError(string title, Exception error)
