@@ -10,6 +10,7 @@ namespace StepVela {
         TextBox guideTitle,stepTitle,stepNotes;
         Button openGuide,saveGuide,manualStep,editImage,replaceImage,moveUp,moveDown,removeStep;
         bool bindingEditor;
+        bool? editorHasStep;
         string projectPath;
         TableLayoutPanel guideEditorPanel;
         Panel titleField,notesField;
@@ -17,8 +18,8 @@ namespace StepVela {
             TableLayoutPanel shell=new TableLayoutPanel {Dock=DockStyle.Fill,Padding=new Padding(26,18,26,20),ColumnCount=1,RowCount=4};
             shell.RowStyles.Add(new RowStyle(SizeType.Absolute,66)); shell.RowStyles.Add(new RowStyle(SizeType.Absolute,54)); shell.RowStyles.Add(new RowStyle(SizeType.Absolute,65)); shell.RowStyles.Add(new RowStyle(SizeType.Percent,100));
             Panel header=new Panel {Dock=DockStyle.Fill};
-            Label brand=new Label {Text="StepVela",Font=new Font("Segoe UI",22,FontStyle.Bold),ForeColor=Theme.Text,AutoSize=true,Location=new Point(0,0)};
-            Label tagline=new Label {Text="DYNAMIC STEP RECORDER",Font=Theme.SmallBold,ForeColor=Theme.Muted,AutoSize=true,Location=new Point(3,42)};
+            Label brand=new Label {Text="StepVela",Font=new Font("Segoe UI",18,FontStyle.Bold),ForeColor=Theme.Text,AutoSize=true,Location=new Point(0,0)};
+            Label tagline=new Label {Text="Dynamic step recorder",ForeColor=Theme.Muted,AutoSize=true,Location=new Point(3,39)};
             FlowLayoutPanel files=new FlowLayoutPanel {Dock=DockStyle.Right,Width=310,Padding=new Padding(0,8,0,0),WrapContents=false};
             openGuide=Theme.Button("Open",78); saveGuide=Theme.Button("Save guide",105); settings=Theme.Button("Settings",82);
             files.Controls.AddRange(new Control[]{openGuide,saveGuide,settings}); header.Controls.AddRange(new Control[]{brand,tagline,files});
@@ -31,8 +32,8 @@ namespace StepVela {
             toolbar.Controls.AddRange(new Control[]{start,pause,stop,comment,save});
             Panel metrics=new Panel {Width=240,Height=40}; countLabel.Dock=DockStyle.Fill; countLabel.Padding=new Padding(12,10,0,0); metrics.Controls.Add(countLabel); toolbar.Controls.Add(metrics);
             SplitContainer body=new SplitContainer {Size=new Size(1128,570),SplitterDistance=322,SplitterWidth=18,Dock=DockStyle.Fill,BackColor=Theme.Background,Panel1MinSize=260,Panel2MinSize=470};
-            Panel rail=new Panel {Dock=DockStyle.Fill,BackColor=Theme.Surface,Padding=new Padding(8)};
-            Panel railHeader=new Panel {Dock=DockStyle.Top,Height=52}; Label stepsLabel=new Label {Text="Steps",AutoSize=true,ForeColor=Theme.Muted,Location=new Point(14,16)};
+            Panel rail=new CardPanel {Dock=DockStyle.Fill,Padding=new Padding(8)};
+            Panel railHeader=new Panel {Dock=DockStyle.Top,Height=52,Padding=new Padding(0,8,0,8)}; Label stepsLabel=new Label {Text="Steps",AutoSize=true,ForeColor=Theme.Muted,Location=new Point(14,16)};
             manualStep=Theme.Button("+ Add step",120); manualStep.Dock=DockStyle.Right; railHeader.Controls.AddRange(new Control[]{stepsLabel,manualStep});
             list=new StepList(); rail.Controls.Add(list); rail.Controls.Add(railHeader); body.Panel1.Controls.Add(rail);
             TableLayoutPanel editor=new TableLayoutPanel {Dock=DockStyle.Fill,Padding=new Padding(18),BackColor=Theme.Surface,ColumnCount=1,RowCount=5};guideEditorPanel=editor;
@@ -44,7 +45,8 @@ namespace StepVela {
             stepNotes=Theme.Input(true); stepNotes.Dock=DockStyle.Fill; stepNotes.ScrollBars=ScrollBars.Vertical; stepNotes.AccessibleName="Step description";
             titleField=new Panel{Dock=DockStyle.Fill,Padding=new Padding(0,22,0,8)};Label titleLabel=new Label{Text="TITLE",ForeColor=Theme.Muted,Font=Theme.SmallBold,AutoSize=true,Location=Point.Empty};titleField.Controls.Add(stepTitle);titleField.Controls.Add(titleLabel);
             notesField=new Panel{Dock=DockStyle.Fill,Padding=new Padding(0,22,0,0)};Label notesLabel=new Label{Text="DESCRIPTION",ForeColor=Theme.Muted,Font=Theme.SmallBold,AutoSize=true,Location=Point.Empty};notesField.Controls.Add(stepNotes);notesField.Controls.Add(notesLabel);
-            editor.Controls.Add(tools,0,0); editor.Controls.Add(preview,0,1); editor.Controls.Add(detail,0,2); editor.Controls.Add(titleField,0,3); editor.Controls.Add(notesField,0,4); body.Panel2.Controls.Add(editor);
+            editor.Controls.Add(tools,0,0); editor.Controls.Add(preview,0,1); editor.Controls.Add(detail,0,2); editor.Controls.Add(titleField,0,3); editor.Controls.Add(notesField,0,4);
+            CardPanel editorCard=new CardPanel{Dock=DockStyle.Fill,Padding=new Padding(1)};editorCard.Controls.Add(editor);body.Panel2.Controls.Add(editorCard);
             shell.Controls.Add(header,0,0); shell.Controls.Add(titleRow,0,1); shell.Controls.Add(toolbar,0,2); shell.Controls.Add(body,0,3); Controls.Add(shell);
             openGuide.Click+=delegate { OpenProject(); }; saveGuide.Click+=delegate { SaveProject(); }; manualStep.Click+=delegate { AddManualStep(); }; editImage.Click+=delegate { EditSelectedImage(); }; replaceImage.Click+=delegate { ReplaceSelectedImage(); };
             moveUp.Click+=delegate { MoveSelected(-1); }; moveDown.Click+=delegate { MoveSelected(1); }; removeStep.Click+=delegate { RemoveSelected(); };
@@ -53,11 +55,12 @@ namespace StepVela {
             stepNotes.TextChanged+=delegate { Step step=SelectedStep(); if(bindingEditor||step==null)return; step.Comment=stepNotes.Text; dirty=true; };
         }
         Step SelectedStep() {return list.SelectedItems.Count==0?null:list.SelectedItems[0].Tag as Step;}
-        void BindStep(Step step) {bindingEditor=true; try {stepTitle.Text=step==null?"":step.Description??"";stepNotes.Text=step==null?"":step.Comment??"";}finally{bindingEditor=false;}}
+        void BindStep(Step step) {bindingEditor=true; try {stepTitle.Text=step==null?"":step.Description??"";stepNotes.Text=step==null?"":step.Comment??"";PreviewSurface surface=preview as PreviewSurface;if(surface!=null){surface.EmptyTitle=step==null?(steps.Count==0?"No steps yet":"Select a step"):"No screenshot";surface.EmptyCaption=step==null?"Record a workflow or add a step.":"Use Replace to add an image.";surface.Invalidate();}}finally{bindingEditor=false;}}
         void SetGuideTitle(string title) {bindingEditor=true;try{guideTitle.Text=title??"Untitled guide";}finally{bindingEditor=false;}}
         void UpdateEditorControls(bool editable) {
             Step step=SelectedStep(); bool selected=editable&&step!=null; openGuide.Enabled=editable; saveGuide.Enabled=editable&&steps.Count>0; manualStep.Enabled=editable; guideTitle.ReadOnly=!editable;
-            titleField.Visible=notesField.Visible=step!=null;guideEditorPanel.RowStyles[3].Height=step==null?0:64;guideEditorPanel.RowStyles[4].Height=step==null?0:116;guideEditorPanel.Controls[0].Visible=step!=null;guideEditorPanel.RowStyles[0].Height=step==null?0:50;
+            bool hasStep=step!=null;
+            if(editorHasStep!=hasStep){guideEditorPanel.SuspendLayout();try{titleField.Visible=notesField.Visible=hasStep;guideEditorPanel.RowStyles[3].Height=hasStep?64:0;guideEditorPanel.RowStyles[4].Height=hasStep?116:0;guideEditorPanel.Controls[0].Visible=hasStep;guideEditorPanel.RowStyles[0].Height=hasStep?50:0;editorHasStep=hasStep;}finally{guideEditorPanel.ResumeLayout();}}
             stepTitle.ReadOnly=!selected; stepNotes.ReadOnly=!selected; editImage.Enabled=selected&&!String.IsNullOrEmpty(step.LocalScreenshot)&&File.Exists(step.LocalScreenshot); replaceImage.Enabled=selected;
             moveUp.Enabled=selected&&step.Number>1; moveDown.Enabled=selected&&step.Number<steps.Count; removeStep.Enabled=selected;
         }

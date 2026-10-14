@@ -21,21 +21,24 @@ using System.Windows.Forms;
 namespace StepVela
 {
     sealed class SettingsForm : Form {
-        readonly CheckBox screenshots; readonly NumericUpDown limit; readonly ComboBox area;
+        readonly CheckBox screenshots; readonly NumericUpDown limit; readonly ComboBox area,appearance;
         public bool ScreenshotEnabled {get{return screenshots.Checked;}}
         public int ScreenshotLimit {get{return (int)limit.Value;}}
         public bool ActiveWindowOnly {get{return area.SelectedIndex==0;}}
+        public bool DarkMode {get{return appearance.SelectedIndex==1;}}
         public SettingsForm(bool enabled,int count,bool windowOnly) {
-            Theme.Form(this); Text="Capture settings"; ClientSize=new Size(460,320); FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false; MinimizeBox=false;
+            Theme.Form(this); Text="Settings"; ClientSize=new Size(460,376); FormBorderStyle=FormBorderStyle.FixedDialog; MaximizeBox=false; MinimizeBox=false;
             screenshots=new CheckBox {Text="Capture screenshots",Checked=enabled,AutoSize=true,Location=new Point(28,28)};
             Label areaLabel=new Label {Text="Capture area",AutoSize=true,Location=new Point(28,85),ForeColor=Theme.Muted};
             area=new ComboBox {DropDownStyle=ComboBoxStyle.DropDownList,BackColor=Theme.Raised,ForeColor=Theme.Text,Location=new Point(235,80),Width=190};
             area.Items.AddRange(new object[]{"Active window","All displays"}); area.SelectedIndex=windowOnly?0:1;
             Label limitLabel=new Label {Text="Recent screenshots",AutoSize=true,Location=new Point(28,145),ForeColor=Theme.Muted};
             limit=new NumericUpDown {Minimum=1,Maximum=999,Value=count,BackColor=Theme.Raised,ForeColor=Theme.Text,Location=new Point(235,140),Width=190};
-            Label privacy=new Label {Text="Images stay on this device. Review them before sharing.",Location=new Point(28,200),Size=new Size(400,40),ForeColor=Theme.Muted};
-            Button save=Theme.Button("Done",110,true); save.Location=new Point(315,260); save.DialogResult=DialogResult.OK;
-            Controls.AddRange(new Control[]{screenshots,areaLabel,area,limitLabel,limit,privacy,save}); AcceptButton=save;
+            Label appearanceLabel=new Label{Text="Appearance",AutoSize=true,ForeColor=Theme.Muted,Location=new Point(28,200)};
+            appearance=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,BackColor=Theme.Raised,ForeColor=Theme.Text,Location=new Point(235,195),Width=190};appearance.Items.AddRange(new object[]{"Light","Dark"});appearance.SelectedIndex=Theme.Dark?1:0;
+            Label privacy=new Label {Text="Images stay on this device. Review them before sharing.",Location=new Point(28,260),Size=new Size(400,40),ForeColor=Theme.Muted};
+            Button save=Theme.Button("Done",110,true); save.Location=new Point(315,318); save.DialogResult=DialogResult.OK;
+            Controls.AddRange(new Control[]{screenshots,areaLabel,area,limitLabel,limit,appearanceLabel,appearance,privacy,save}); AcceptButton=save;
         }
     }
 

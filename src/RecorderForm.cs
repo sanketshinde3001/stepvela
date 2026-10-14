@@ -63,7 +63,7 @@ namespace StepVela
             AutoScaleMode=AutoScaleMode.Dpi;
             try { Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
             sessionsRoot=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"StepVela","Sessions");
-            Directory.CreateDirectory(sessionsRoot); LoadSettings(); BuildWorkspace();
+            Directory.CreateDirectory(sessionsRoot); LoadSettings(); BackColor=Theme.Background;ForeColor=Theme.Text;BuildWorkspace();
             start.Click+=delegate { StartRecording(); }; pause.Click+=delegate { TogglePause(); }; stop.Click+=delegate { StopRecording(); };
             comment.Click+=delegate { AddComment(); }; save.Click+=delegate { SaveRecording(); }; settings.Click+=delegate { EditSettings(); };
             list.SelectedIndexChanged+=delegate { ShowSelection(); };
@@ -378,11 +378,11 @@ namespace StepVela
             using (SettingsForm dialog = new SettingsForm(screenshotsEnabled, screenshotLimit, activeWindowOnly))
             {
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
-                screenshotsEnabled = dialog.ScreenshotEnabled; screenshotLimit = dialog.ScreenshotLimit; activeWindowOnly=dialog.ActiveWindowOnly;
+                screenshotsEnabled = dialog.ScreenshotEnabled; screenshotLimit = dialog.ScreenshotLimit; activeWindowOnly=dialog.ActiveWindowOnly;Theme.Switch(this,dialog.DarkMode);
                 try
                 {
                     string root = Path.GetDirectoryName(sessionsRoot);
-                    File.WriteAllLines(Path.Combine(root, "settings.txt"), new string[] { screenshotsEnabled.ToString(), screenshotLimit.ToString(), activeWindowOnly.ToString() });
+                    File.WriteAllLines(Path.Combine(root, "settings.txt"), new string[] { screenshotsEnabled.ToString(), screenshotLimit.ToString(), activeWindowOnly.ToString(),Theme.Dark.ToString() });
                 }
                 catch (Exception error) { ShowError("Settings apply for this launch but could not be saved", error); }
             }
@@ -393,7 +393,7 @@ namespace StepVela
             {
                 string[] values = File.ReadAllLines(Path.Combine(Path.GetDirectoryName(sessionsRoot), "settings.txt")); bool enabled; int count;
                 if (values.Length >= 2 && Boolean.TryParse(values[0], out enabled) && Int32.TryParse(values[1], out count) && count >= 1 && count <= 999)
-                { screenshotsEnabled = enabled; screenshotLimit = count; bool windowOnly; if(values.Length>2 && Boolean.TryParse(values[2],out windowOnly)) activeWindowOnly=windowOnly; }
+                { screenshotsEnabled = enabled; screenshotLimit = count; bool windowOnly; if(values.Length>2 && Boolean.TryParse(values[2],out windowOnly)) activeWindowOnly=windowOnly;bool darkMode;if(values.Length>3&&Boolean.TryParse(values[3],out darkMode))Theme.SetDark(darkMode); }
             }
             catch { }
         }
