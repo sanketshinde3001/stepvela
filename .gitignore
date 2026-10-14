@@ -1,0 +1,12 @@
+/build/
+/dist/
+/test-output/
+*.user
+*.suo
+*.log
+*.tmp
+*.stepvela
+*.zip
+*.exe
+*.pdb
+/tools/
