@@ -260,7 +260,13 @@ namespace StepVela
                 {
                     if (exiting) { Interlocked.Decrement(ref pending); continue; }
                     Step result;
-                    try { result = ScreenCapture.MakeStep(request); }
+                    try {
+                        // Input hooks run before the target app processes the event.
+                        // Give its next paint a short window without blocking input.
+                        int settle=(int)(request.Time.AddMilliseconds(150)-DateTimeOffset.Now).TotalMilliseconds;
+                        if(settle>0) Thread.Sleep(settle);
+                        result = ScreenCapture.MakeStep(request);
+                    }
                     catch (Exception error)
                     {
                         result = new Step { Timestamp = request.Time.ToString("o"), Action = request.Action, Description = request.Action,
@@ -319,7 +325,12 @@ namespace StepVela
                 {
                     Hide();
                     await Task.Delay(220);
-                    try { bitmap = ScreenCapture.Desktop(out bounds); }
+                    try {
+                        IntPtr target=activeWindowCapture?Native.GetForegroundWindow():IntPtr.Zero;
+                        uint processId;Native.GetWindowThreadProcessId(target,out processId);
+                        if(activeWindowCapture&&(target==IntPtr.Zero||processId==ownProcess))throw new InvalidOperationException("Select another application before adding a screenshot note.");
+                        bitmap = ScreenCapture.Desktop(out bounds,target);
+                    }
                     catch (Exception error) { warning = "Comment screenshot failed: " + error.Message; }
                     Show(); Activate();
                 }
@@ -339,8 +350,8 @@ namespace StepVela
                                 using (Pen pen = new Pen(Color.FromArgb(235, 170, 0), 4))
                                 { graphics.FillRectangle(brush, highlight); graphics.DrawRectangle(pen, highlight); }
                             }
-                            step.DesktopBounds = new ScreenBounds(bounds); step.LocalScreenshot = Path.Combine(sessionFolder, Guid.NewGuid().ToString("N") + ".png");
-                            bitmap.Save(step.LocalScreenshot, ImageFormat.Png);
+                            step.DesktopBounds = new ScreenBounds(bounds); step.LocalScreenshot = Path.Combine(sessionFolder, Guid.NewGuid().ToString("N") + ".jpg");
+                            ScreenCapture.SaveJpeg(bitmap,step.LocalScreenshot);
                         }
                         Append(step);
                     }
