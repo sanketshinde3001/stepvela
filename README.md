@@ -79,3 +79,6 @@ Uses C#, Windows Forms, and .NET Framework. No bundled browser runtime.
 [Build and packaging](docs/BUILDING.md) · [Contributing](CONTRIBUTING.md) · [Report an issue](https://github.com/sanketshinde3001/stepvela/issues)
 
 MIT © 2026 Sanket Rajendra Shinde. [License](LICENSE)
+## Support
+
+If StepVela helps you create clearer guides, you can [support its development](https://buymeacoffee.com/sanketshinde).

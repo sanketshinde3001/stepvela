@@ -37,8 +37,10 @@ namespace StepVela
             Label appearanceLabel=new Label{Text="Appearance",AutoSize=true,ForeColor=Theme.Muted,Location=new Point(28,200)};
             appearance=new ComboBox{DropDownStyle=ComboBoxStyle.DropDownList,BackColor=Theme.Raised,ForeColor=Theme.Text,Location=new Point(235,195),Width=190};appearance.Items.AddRange(new object[]{"Light","Dark"});appearance.SelectedIndex=Theme.Dark?1:0;
             Label privacy=new Label {Text="Images stay on this device. Review them before sharing.",Location=new Point(28,260),Size=new Size(400,40),ForeColor=Theme.Muted};
+            LinkLabel support=new LinkLabel {Text="Support StepVela",AutoSize=true,Location=new Point(28,326),LinkColor=Theme.Muted};
+            support.LinkClicked+=(sender,args)=>Process.Start(new ProcessStartInfo("https://buymeacoffee.com/sanketshinde"){UseShellExecute=true});
             Button save=Theme.Button("Done",110,true); save.Location=new Point(315,318); save.DialogResult=DialogResult.OK;
-            Controls.AddRange(new Control[]{screenshots,areaLabel,area,limitLabel,limit,appearanceLabel,appearance,privacy,save}); AcceptButton=save;
+            Controls.AddRange(new Control[]{screenshots,areaLabel,area,limitLabel,limit,appearanceLabel,appearance,privacy,support,save}); AcceptButton=save;
         }
     }
 
